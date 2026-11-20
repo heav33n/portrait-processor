@@ -50,7 +50,9 @@ def session(model, home, path=None):
 def mask(sess, image):
     from rembg import remove
 
-    return np.asarray(remove(image, session=sess, only_mask=True).convert("L"), np.float32)
+    result = remove(image, session=sess, only_mask=True)
+    assert isinstance(result, Image.Image)
+    return np.asarray(result.convert("L"), np.float32)
 
 
 def main():

@@ -71,11 +71,13 @@ class InferenceProcess:
             creationflags=flags,
         )
         self.messages = queue.Queue()
-        process, messages = self.process, self.messages
+        messages = self.messages
+        stdout = self.process.stdout
+        assert stdout is not None
 
         def read():
             try:
-                for line in process.stdout:
+                for line in stdout:
                     try:
                         messages.put(json.loads(line))
                     except ValueError:
@@ -94,8 +96,9 @@ class InferenceProcess:
                 except subprocess.TimeoutExpired:
                     self.process.kill()
                     self.process.wait(timeout=2)
-            self.process.stdin.close()
-            self.process.stdout.close()
+            for stream in (self.process.stdin, self.process.stdout):
+                if stream is not None:
+                    stream.close()
             self.process = None
         if self.log is not None:
             self.log.close()
@@ -117,6 +120,8 @@ class InferenceProcess:
             check_cancel(cancel)
             try:
                 self._start()
+                assert self.directory is not None and self.messages is not None
+                assert self.process is not None and self.process.stdin is not None
                 source = Path(self.directory.name) / "input.npz"
                 target = Path(self.directory.name) / "output.npy"
                 np.savez(source, rgb=rgb, original_alpha=original_alpha)

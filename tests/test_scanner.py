@@ -163,6 +163,7 @@ def test_scanner_panel_previews_then_saves_and_returns_the_sheet(qtbot, tmp_path
     qtbot.waitUntil(lambda: dialog.accepted_path is not None)
     assert backend.calls[1][1] is False
     assert backend.calls[1][0].acquisition_dpi == 600
+    assert dialog.accepted_path is not None
     with Image.open(dialog.accepted_path) as image:
         assert image.size == (196, 294)
     assert dialog.accepted_path.name == "Scanned portraits.png"

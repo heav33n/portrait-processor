@@ -4,7 +4,9 @@ import pytest
 from portrait_processor.app import Window
 from portrait_processor.calibration import Measurement, load, machine_key, save
 from PySide6.QtCore import QSettings
-from test_desktop import window  # noqa: F401 - shared fixture
+from test_desktop import (  # pyright: ignore[reportImplicitRelativeImport]
+    window,  # noqa: F401 - shared fixture
+)
 
 
 class MeasuringEngine:
@@ -54,11 +56,12 @@ def test_budget_change_repicks_from_the_stored_measurement_without_running(qtbot
     preferences = QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)
     save(preferences, Measurement(machine_key(), 2.0, {}, "2026-11-20"))
     window, _ = make(qtbot, tmp_path)
-    window.engine = MeasuringEngine({})
+    engine = MeasuringEngine({})
+    window.engine = engine  # pyright: ignore[reportAttributeAccessIssue]
     window.ai_budget.setValue(5)
-    assert window.engine.level == 2 and window.engine.measured == []
+    assert engine.level == 2 and engine.measured == []
     window.ai_budget.setValue(600)
-    assert window.engine.level == 4
+    assert engine.level == 4
     assert "Detailed" in window.ai_estimate.text()
     window.ai_budget.setValue(1)
     assert window.engine.level == 1
@@ -67,11 +70,12 @@ def test_budget_change_repicks_from_the_stored_measurement_without_running(qtbot
 
 def test_measure_this_pc_runs_in_the_background_and_saves(qtbot, tmp_path):
     window, preferences = make(qtbot, tmp_path)
-    window.engine = MeasuringEngine({1: 1.0, 2: 1.3, 3: 4.0, 4: 30.0})
+    engine = MeasuringEngine({1: 1.0, 2: 1.3, 3: 4.0, 4: 30.0})
+    window.engine = engine  # pyright: ignore[reportAttributeAccessIssue]
     window.ai_budget.setValue(25)
     window.measure_button.click()
     qtbot.waitUntil(lambda: load(preferences) is not None and not window.tasks, timeout=5000)
-    assert window.engine.measured[:2] == [1, 1] and 4 in window.engine.measured
+    assert engine.measured[:2] == [1, 1] and 4 in engine.measured
     assert window.engine.level == 3
     assert "Balanced" in window.ai_estimate.text()
 
@@ -104,7 +108,11 @@ class SlowMeasure(MeasuringEngine):
 def test_review_1_controls_stay_locked_while_measuring_even_when_picking_photos(
     qtbot, window, portrait
 ):
-    from test_desktop import GatedEngine, batch_paths, wait_for_preview
+    from test_desktop import (  # pyright: ignore[reportImplicitRelativeImport]
+        GatedEngine,
+        batch_paths,
+        wait_for_preview,
+    )
 
     paths = batch_paths(portrait)
     engine = GatedEngine(6)

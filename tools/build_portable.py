@@ -66,6 +66,7 @@ if MACOS:
     launcher = contents / "MacOS" / "PortraitProcessor"
 else:
     top = work / name
+    contents = top
     home = top
     launcher = top / "PortraitProcessor"
 runtime = home / "runtime"
@@ -131,7 +132,7 @@ if MACOS:
     from PIL import Image
 
     with Image.open(ROOT / "assets" / "portrait-processor.ico") as icon:
-        icon.size = (256, 256)
+        icon.size = (256, 256)  # pyright: ignore[reportAttributeAccessIssue] - picks the ICO frame
         icon.load()
         icon.save(home / "PortraitProcessor.icns")
     with (contents / "Info.plist").open("wb") as stream:

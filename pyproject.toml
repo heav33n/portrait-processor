@@ -48,6 +48,7 @@ line-length = 100
 
 
 [tool.basedpyright]
+typeCheckingMode = "standard"
 include = ["python", "tests", "tools"]
 exclude = ["artifacts", "dist", "target", ".venv", "**/__pycache__"]
 venvPath = "."

@@ -12,6 +12,7 @@ import threading
 import time
 from dataclasses import replace
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from PySide6.QtCore import QObject, QRunnable, QSettings, Qt, QThreadPool, QTimer, Signal, Slot
@@ -60,6 +61,7 @@ from .document import (
 from .i18n import tr
 from .inference_process import InferenceProcess
 from .levels import LEVELS, display_name, level_from_preference
+from .preferences import bool_setting, int_setting
 from .scan_dialog import ScanReview
 from .scans import extract_scan, load_scan
 
@@ -132,8 +134,7 @@ QProgressBar { border: none; background: #2b4032; border-radius: 3px; max-height
 QProgressBar::chunk { background: #9ed9b2; }
 QToolTip { background: #263c2e; color: #e4ece7; border: 1px solid #486d55; padding: 8px; }
 QSplitter::handle { background: transparent; width: 16px; }
-"""
-STYLE += """
+
 QCheckBox { spacing: 8px; }
 QCheckBox::indicator { width: 15px; height: 15px; background: #18221e; border: 1px solid #789583; border-radius: 3px; }
 QCheckBox::indicator:checked { background: #477b59; border-color: #77aa88; image: url("CHECK_ASSET"); }
@@ -225,7 +226,13 @@ def card(title):
     return frame, body
 
 
-class SpinFieldLayout:
+if TYPE_CHECKING:
+    _SpinFieldBase = QAbstractSpinBox
+else:
+    _SpinFieldBase = object
+
+
+class SpinFieldLayout(_SpinFieldBase):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         # Keep the editor readable with Qt's styled, buttonless spin boxes.
@@ -289,7 +296,7 @@ class Window(QMainWindow):
         self.measure_job = None
         self.analysis_busy = False
         self.batch_job = None
-        self.batch_state = None
+        self.batch_state: dict[str, Any] | None = None
         self.waiting_path = None
         self.last_review_path = None
         self.prefetch_enabled = False
@@ -403,7 +410,7 @@ class Window(QMainWindow):
         self.guide.toggled.connect(self._show_preview)
         toolbar.addWidget(self.guide)
         self.snap = QCheckBox(tr("Snap"))
-        self.snap.setChecked(self.preferences.value("canvas/snap", True, type=bool))
+        self.snap.setChecked(bool_setting(self.preferences, "canvas/snap", True))
         self.snap.setToolTip(
             tr("Snap to center and frame edges. Hold Alt while dragging to bypass.")
         )
@@ -476,7 +483,7 @@ class Window(QMainWindow):
         self.ai_budget = QSpinBox()
         self.ai_budget.setRange(1, 600)
         self.ai_budget.setSuffix(tr(" s per photo"))
-        self.ai_budget.setValue(int(self.preferences.value("ai/budget", 20)))
+        self.ai_budget.setValue(int_setting(self.preferences, "ai/budget", 20))
         self.ai_budget.setToolTip(tr("How long you are willing to wait for each photo."))
         self.measure_button = button(tr("Measure this PC"), self.measure_pc)
         auto_layout.addWidget(self.ai_budget, 1)
@@ -559,7 +566,9 @@ class Window(QMainWindow):
         self.retouch_toggle.toggled.connect(self._toggle_retouch)
         controls_layout.addWidget(self.retouch_toggle)
         self.mask_group, mask_layout = card(tr("Manual corrections"))
-        title = mask_layout.takeAt(0).widget()
+        title_item = mask_layout.takeAt(0)
+        title = title_item.widget() if title_item is not None else None
+        assert title is not None
         retouch_header = QHBoxLayout()
         retouch_header.addWidget(title, 1)
         retouch_header.addWidget(button(tr("Done"), lambda: self.retouch_toggle.setChecked(False)))
@@ -791,7 +800,7 @@ class Window(QMainWindow):
         identifier, message = payload
         if identifier == self.analysis_job:
             self.status.setText(message)
-        elif identifier == self.batch_job:
+        elif identifier == self.batch_job and self.batch_state is not None:
             if isinstance(message, dict):
                 self._commit_batch_item(message["ready"], self.batch_state)
             else:
@@ -913,7 +922,8 @@ class Window(QMainWindow):
         self.manual_button.setEnabled(editable)
         self.face_selector.setEnabled(editable and bool(self.doc.faces) if self.doc else False)
         current = (
-            editable
+            self.doc is not None
+            and editable
             and valid_name
             and self.stroke_before is None
             and self.drag_state is None
@@ -1156,14 +1166,14 @@ class Window(QMainWindow):
         }
         self.batch_state = state
         completed = []
-        defaults = {
-            "headroom": int(self.preferences.value("frame/headroom", 180)),
-            "side_margin": int(self.preferences.value("frame/side_margin", 64)),
-            "bottom_margin": int(self.preferences.value("frame/bottom_margin", 0)),
-            "strict_symmetry": self.preferences.value("frame/strict_symmetry", False, type=bool),
+        defaults: dict[str, Any] = {
+            "headroom": int_setting(self.preferences, "frame/headroom", 180),
+            "side_margin": int_setting(self.preferences, "frame/side_margin", 64),
+            "bottom_margin": int_setting(self.preferences, "frame/bottom_margin", 0),
+            "strict_symmetry": bool_setting(self.preferences, "frame/strict_symmetry", False),
         }
         image_format = str(self.preferences.value("export/format", "PNG"))
-        quality = min(100, max(1, int(self.preferences.value("export/quality", 95))))
+        quality = min(100, max(1, int_setting(self.preferences, "export/quality", 95)))
         batch_directory = Path(self.session_directory.name) / f"batch-{self.serial + 1}"
         batch_directory.mkdir()
         sources = [(p, self.documents.get(p), self.drafts.get(p)) for p in candidates]
@@ -1300,7 +1310,7 @@ class Window(QMainWindow):
             self._process_all(automatic=True)
 
     def _update_batch_hint(self):
-        if self.batch_job is not None:
+        if self.batch_job is not None and self.batch_state is not None:
             state = tr("Preparing more in the background. Ready portraits stay editable.")
             self.queue_hint.setToolTip(str(self.batch_state["message"]))
         elif self.prefetch_paused:
@@ -1359,12 +1369,12 @@ class Window(QMainWindow):
             return
         self._busy(True)
         self.status.setText(tr("Opening {name}…", name=path.name))
-        headroom = int(self.preferences.value("frame/headroom", 180))
-        side_margin = int(self.preferences.value("frame/side_margin", 64))
-        bottom_margin = int(self.preferences.value("frame/bottom_margin", 0))
-        strict_symmetry = self.preferences.value("frame/strict_symmetry", False, type=bool)
+        headroom = int_setting(self.preferences, "frame/headroom", 180)
+        side_margin = int_setting(self.preferences, "frame/side_margin", 64)
+        bottom_margin = int_setting(self.preferences, "frame/bottom_margin", 0)
+        strict_symmetry = bool_setting(self.preferences, "frame/strict_symmetry", False)
         export_format = str(self.preferences.value("export/format", "PNG"))
-        export_quality = int(self.preferences.value("export/quality", 95))
+        export_quality = int_setting(self.preferences, "export/quality", 95)
         victims = list(self.documents.items())[: max(0, len(self.documents) - 2)]
 
         def load(progress, cancel):

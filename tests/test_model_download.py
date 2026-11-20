@@ -10,7 +10,7 @@ def test_failed_model_download_removes_temporary_file(monkeypatch, tmp_path):
     def unavailable(*args, **kwargs):
         raise OSError("No network")
 
-    monkeypatch.setattr(ai.urllib.request, "urlopen", unavailable)
+    monkeypatch.setattr("portrait_processor.ai.urllib.request.urlopen", unavailable)
     with pytest.raises(OSError, match="No network"):
         ai.face_model(lambda text: None, threading.Event())
     assert list(tmp_path.iterdir()) == []

@@ -12,6 +12,7 @@ import tempfile
 import time
 from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from PIL import Image
@@ -170,8 +171,9 @@ class ScannerBackend:
             return text
         finally:
             self._stop(process)
-            process.stdout.close()
-            process.stderr.close()
+            for stream in (process.stdout, process.stderr):
+                if stream is not None:
+                    stream.close()
 
     def devices(self, driver, cancel):
         text = self._run(["--listdevices", "--driver", driver], cancel, 45)
@@ -251,10 +253,11 @@ def save_capture(source, directory, name, settings, image_format, cancel):
             image = original if original.mode == "RGB" else original.convert("RGB")
             factor = settings.output_dpi / settings.acquisition_dpi
             if factor < 1:
-                size = tuple(max(1, round(n * factor)) for n in image.size)
+                width, height = (max(1, round(n * factor)) for n in image.size)
+                size = (width, height)
                 image = image.resize(size, Image.Resampling.LANCZOS)
             check_cancel(cancel)
-            options = {"dpi": (settings.output_dpi,) * 2}
+            options: dict[str, Any] = {"dpi": (settings.output_dpi,) * 2}
             if image_format == "PNG":
                 options["compress_level"] = 1
             elif image_format == "JPEG":

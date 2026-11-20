@@ -51,8 +51,8 @@ def test_rotates_whole_scan_then_finds_all_prints_in_reading_order(scanned_sheet
 def test_extraction_keeps_complete_prints_and_uses_numbered_names(scanned_sheet, tmp_path):
     path, rgb = scanned_sheet
     crops = [
-        np.float32([[25, 20], [245, 20], [245, 280], [25, 280]]),
-        np.float32([[280, 20], [500, 20], [500, 280], [280, 280]]),
+        np.array([[25, 20], [245, 20], [245, 280], [25, 280]], dtype=np.float32),
+        np.array([[280, 20], [500, 20], [500, 280], [280, 280]], dtype=np.float32),
     ]
     output = tmp_path / "extracted"
     output.mkdir()
@@ -86,7 +86,7 @@ def test_degenerate_crop_is_rejected():
 
 def test_tilted_row_is_sorted_left_to_right():
     def box(x, y):
-        return np.float32([[x, y], [x + 100, y], [x + 100, y + 130], [x, y + 130]])
+        return np.array([[x, y], [x + 100, y], [x + 100, y + 130], [x, y + 130]], dtype=np.float32)
 
     a, b, c = box(5, 15), box(140, 0), box(5, 200)
     actual = reading_order([c, b, a])
@@ -100,7 +100,7 @@ def test_scan_review_add_move_remove_and_rotate(qtbot, scanned_sheet):
     from PySide6.QtCore import QPointF, Qt
 
     path, rgb = scanned_sheet
-    crop = np.float32([[25, 20], [245, 20], [245, 280], [25, 280]])
+    crop = np.array([[25, 20], [245, 20], [245, 280], [25, 280]], dtype=np.float32)
     dialog = ScanReview(Scan(path, rgb.copy(), [crop]))
     qtbot.addWidget(dialog)
     dialog.show()
@@ -124,8 +124,8 @@ def test_scan_review_add_move_remove_and_rotate(qtbot, scanned_sheet):
     assert view.crops[1].mean(axis=0)[0] > before.mean(axis=0)[0] + 20
     dialog.remove_button.click()
     assert len(view.crops) == 1
-    view.rotate()
+    view.rotate_half_turn()
     np.testing.assert_array_equal(view.scan.rgb, rgb[::-1, ::-1])
-    view.rotate()
+    view.rotate_half_turn()
     np.testing.assert_array_equal(view.scan.rgb, rgb)
     np.testing.assert_allclose(view.crops[0], crop)

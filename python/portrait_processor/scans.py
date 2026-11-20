@@ -123,7 +123,7 @@ def extract_crop(rgb, corners):
     h = round(max(np.linalg.norm(points[3] - points[0]), np.linalg.norm(points[2] - points[1])))
     if min(w, h) < 8:
         raise ValueError(tr("This crop is too small. Enlarge its boundary or remove it."))
-    target = np.float32([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]])
+    target = np.array([[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]], dtype=np.float32)
     transform = cv2.getPerspectiveTransform(points, target)
     return cv2.warpPerspective(
         rgb,

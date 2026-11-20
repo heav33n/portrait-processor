@@ -38,7 +38,7 @@ def vision_modules():
     """MediaPipe eagerly imports audio; avoid enumerating unused audio hardware."""
     blocked = "sounddevice" not in sys.modules
     if blocked:
-        sys.modules["sounddevice"] = None
+        sys.modules["sounddevice"] = None  # pyright: ignore[reportArgumentType]
     try:
         import mediapipe as mp
         from mediapipe.tasks import python
@@ -175,7 +175,7 @@ class InferenceEngine:
         original_alpha: np.ndarray,
         progress: Callable[[str], None],
         cancel: threading.Event,
-    ) -> tuple:
+    ) -> tuple[np.ndarray, list[Face], list[str]]:
         check_cancel(cancel)
         self.load(progress)
         from rembg import remove
@@ -185,6 +185,7 @@ class InferenceEngine:
         started = time.perf_counter()
         mask = remove(Image.fromarray(rgb), session=self.session, only_mask=True)
         self.last_mask_seconds = time.perf_counter() - started
+        assert isinstance(mask, Image.Image)
         alpha = np.asarray(mask.convert("L"))
         if accuracy_level(self.level).refine:
             progress(tr("Refining the portrait edges…"))

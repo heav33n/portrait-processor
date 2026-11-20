@@ -9,12 +9,16 @@ import sys
 import tempfile
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from PIL import Image, ImageOps
 
 from . import _native
 from .i18n import tr
+
+if TYPE_CHECKING:
+    from ._native import RenderResult
 
 WIDTH, HEIGHT = 948, 1048
 SUPPORTED = {".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff", ".bmp"}
@@ -74,7 +78,7 @@ class Document:
     dirty: bool = False
     revision: int = 0
     result_revision: int = -1
-    result: dict | None = None
+    result: RenderResult | None = None
     saved_path: Path | None = None
     output_name: str | None = None
     export_format: str = "PNG"
@@ -216,7 +220,7 @@ class Document:
 
     def stash(self, path: Path) -> None:
         """Keep a temporary queue draft while releasing full-resolution RGB memory."""
-        metadata = {
+        metadata: dict[str, Any] = {
             "settings": asdict(self.settings),
             "faces": [asdict(face) for face in self.faces],
             "nose": self.nose,
@@ -231,7 +235,7 @@ class Document:
             "export_format": self.export_format,
             "export_quality": self.export_quality,
         }
-        arrays = {"alpha": self.alpha, "base_alpha": self.base_alpha}
+        arrays: dict[str, Any] = {"alpha": self.alpha, "base_alpha": self.base_alpha}
         for name, stack in [("undo", self.undo_stack), ("redo", self.redo_stack)]:
             metadata[name] = [change.box for change in stack]
             for i, change in enumerate(stack):
@@ -276,7 +280,7 @@ class Document:
         return doc
 
 
-def render_document(doc: Document) -> dict:
+def render_document(doc: Document) -> RenderResult:
     if not doc.ready:
         raise ValueError(tr("Set the nose and both eye markers before rendering."))
     nose = doc.nose or ((doc.rgb.shape[1] - 1) / 2, (doc.rgb.shape[0] - 1) / 2)

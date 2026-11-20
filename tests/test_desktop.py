@@ -34,7 +34,7 @@ def window(qtbot, qapp, tmp_path):
     qapp.setStyle("Fusion")
     qapp.setStyleSheet(STYLE)
     widget = Window(QSettings(str(tmp_path / "test-settings.ini"), QSettings.Format.IniFormat))
-    widget.engine = FakeEngine()
+    widget.engine = FakeEngine()  # pyright: ignore[reportAttributeAccessIssue]
 
     def cleanup(widget):
         widget.timer.stop()
@@ -111,8 +111,8 @@ def test_missing_batch_face_does_not_stop_other_portraits(qtbot, window, portrai
     from portrait_processor.document import Face
 
     class MissingFirst(FakeEngine):
-        def analyze(self, *args):
-            alpha, faces, warnings = super().analyze(*args)
+        def analyze(self, rgb, original_alpha, progress, cancel):
+            alpha, faces, warnings = super().analyze(rgb, original_alpha, progress, cancel)
             return alpha, [] if self.calls == 1 else faces, warnings
 
     second = portrait.path.with_name("Second.png")
@@ -138,7 +138,10 @@ def test_scan_import_queues_crops_and_keeps_output_outside_temp_folder(qtbot, wi
 
     rgb = np.tile(portrait.rgb, (1, 2, 1))
     h, w = portrait.rgb.shape[:2]
-    crops = [np.float32([[x, 0], [x + w - 1, 0], [x + w - 1, h - 1], [x, h - 1]]) for x in (0, w)]
+    crops = [
+        np.array([[x, 0], [x + w - 1, 0], [x + w - 1, h - 1], [x, h - 1]], dtype=np.float32)
+        for x in (0, w)
+    ]
     scan = Scan(portrait.path, rgb, crops)
     window._import_scan(scan, crops)
     wait_for_preview(qtbot, window)

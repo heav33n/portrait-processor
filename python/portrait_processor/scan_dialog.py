@@ -92,7 +92,7 @@ class ScanCanvas(QGraphicsView):
     def point(self, event):
         p = self.mapToScene(event.position().toPoint())
         h, w = self.scan.rgb.shape[:2]
-        return np.float32([np.clip(p.x(), 0, w - 1), np.clip(p.y(), 0, h - 1)])
+        return np.array([np.clip(p.x(), 0, w - 1), np.clip(p.y(), 0, h - 1)], dtype=np.float32)
 
     def mousePressEvent(self, event):
         if event.button() != Qt.MouseButton.LeftButton:
@@ -139,7 +139,9 @@ class ScanCanvas(QGraphicsView):
         elif kind == "new":
             x1, y1 = np.minimum(start, point)
             x2, y2 = np.maximum(start, point)
-            self.crops[self.selected] = np.float32([[x1, y1], [x2, y1], [x2, y2], [x1, y2]])
+            self.crops[self.selected] = np.array(
+                [[x1, y1], [x2, y1], [x2, y2], [x1, y2]], dtype=np.float32
+            )
         else:
             offset = point - start
             crop = original[0]
@@ -170,7 +172,7 @@ class ScanCanvas(QGraphicsView):
             self.changed.emit()
             self.viewport().update()
 
-    def rotate(self):
+    def rotate_half_turn(self):
         h, w = self.scan.rgb.shape[:2]
         self.scan.rgb = np.ascontiguousarray(self.scan.rgb[::-1, ::-1])
         self.crops = reading_order([ordered_corners([w - 1, h - 1] - c) for c in self.crops])
@@ -229,7 +231,7 @@ class ScanReview(QDialog):
         self.remove_button.clicked.connect(self.canvas.remove_selected)
         controls.addWidget(self.remove_button)
         rotate = QPushButton(tr("Rotate sheet 180°"))
-        rotate.clicked.connect(self.canvas.rotate)
+        rotate.clicked.connect(self.canvas.rotate_half_turn)
         controls.addWidget(rotate)
         fit = QPushButton(tr("Fit sheet"))
         fit.clicked.connect(self.canvas.fit)

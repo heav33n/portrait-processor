@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
 from .ai import Cancelled
 from .canvas import Canvas
 from .i18n import tr
+from .preferences import int_setting
 from .scanner import ScannerBackend, ScannerSettings, save_capture, scan_preview
 
 
@@ -143,7 +144,7 @@ class ScannerDialog(QDialog):
         self.scale = QSpinBox()
         self.scale.setRange(1, 100)
         self.scale.setSuffix(" %")
-        self.scale.setValue(int(self.preferences.value("scanner/scale", 100)))
+        self.scale.setValue(int_setting(self.preferences, "scanner/scale", 100))
         self.scale.setToolTip(
             tr(
                 "100% keeps the scanned pixels. 49% makes each dimension 49% as large. This is not JPEG quality."
@@ -227,7 +228,7 @@ class ScannerDialog(QDialog):
         QTimer.singleShot(0, self.find_devices)
 
     def _resolution_choices(self):
-        previous = self.dpi.currentData() or int(self.preferences.value("scanner/dpi", 1200))
+        previous = self.dpi.currentData() or int_setting(self.preferences, "scanner/dpi", 1200)
         self.dpi.clear()
         for dpi in (150, 300, 600, 1200):
             if self.driver.currentData() != "wia" or dpi <= 600:
@@ -343,6 +344,7 @@ class ScannerDialog(QDialog):
         except RuntimeError as error:
             self._status(str(error))
             return
+        backend = self.backend
         driver = self.driver.currentData()
         self.device.clear()
         self._status(tr("Finding connected scanners…"))
@@ -360,7 +362,7 @@ class ScannerDialog(QDialog):
             )
             self._enabled()
 
-        self._start(lambda progress, cancel: self.backend.devices(driver, cancel), found)
+        self._start(lambda progress, cancel: backend.devices(driver, cancel), found)
 
     def settings(self):
         return ScannerSettings(
@@ -375,11 +377,13 @@ class ScannerDialog(QDialog):
     def _preview(self):
         settings = self.settings()
         self._status(tr("Scanning a quick preview…"))
+        backend = self.backend
+        assert backend is not None
         path = Path(self.directory.name) / "preview.tiff"
         path.unlink(missing_ok=True)
 
         def acquire(progress, cancel):
-            self.backend.capture(settings, path, cancel, preview=True)
+            backend.capture(settings, path, cancel, preview=True)
             return scan_preview(path)
 
         def shown(rgb):
@@ -406,11 +410,13 @@ class ScannerDialog(QDialog):
             self.output,
         )
         self._status(tr("Scanning the full sheet…"))
+        backend = self.backend
+        assert backend is not None
         path = Path(self.directory.name) / "capture.tiff"
         path.unlink(missing_ok=True)
 
         def acquire(progress, cancel):
-            self.backend.capture(settings, path, cancel)
+            backend.capture(settings, path, cancel)
             progress(tr("Saving the scanned sheet…"))
             return save_capture(path, directory, name, settings, image_format, cancel)
 

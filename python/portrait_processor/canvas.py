@@ -43,7 +43,7 @@ class Canvas(QGraphicsView):
         self.markers = []
         self.guide = None
         self.frame_guides = []
-        self.size = None
+        self.image_size = None
         self.portrait_drag = None
         self.space_tool = None
         self.rgb = None
@@ -55,7 +55,7 @@ class Canvas(QGraphicsView):
         self.markers = []
         self.guide = None
         self.frame_guides = []
-        self.size = None
+        self.image_size = None
         text = self.scene().addText(
             tr("Open a portrait to begin\n\nChoose photos or a folder above.")
         )
@@ -87,14 +87,14 @@ class Canvas(QGraphicsView):
     ):
         h, w = rgb.shape[:2]
         self.rgb = rgb
-        same_size = self.size == (w, h)
+        same_size = self.image_size == (w, h)
         if not same_size or self.image_item is None:
             self.scene().clear()
             self.markers = []
             self.guide = None
             self.frame_guides = []
             self.image_item = self.scene().addPixmap(pixmap(rgb))
-            self.size = (w, h)
+            self.image_size = (w, h)
             self.scene().setSceneRect(QRectF(-20, -20, w + 40, h + 40))
         else:
             self.image_item.setPixmap(pixmap(rgb))
@@ -141,7 +141,8 @@ class Canvas(QGraphicsView):
                     (w - side - 0.5, -0.5, w - side - 0.5, h - 0.5),
                     (-0.5, h - bottom - 0.5, w - 0.5, h - bottom - 0.5),
                 ]:
-                    self.frame_guides.append(self.scene().addLine(*coordinates, boundary_pen))
+                    x1, y1, x2, y2 = coordinates
+                    self.frame_guides.append(self.scene().addLine(x1, y1, x2, y2, boundary_pen))
         if not same_size or not preserve_zoom or self.auto_fit:
             self.fit()
 
@@ -182,8 +183,8 @@ class Canvas(QGraphicsView):
 
     def valid_point(self, event):
         point = self.mapToScene(event.position().toPoint())
-        if self.size is None or not (
-            0 <= point.x() < self.size[0] and 0 <= point.y() < self.size[1]
+        if self.image_size is None or not (
+            0 <= point.x() < self.image_size[0] and 0 <= point.y() < self.image_size[1]
         ):
             return None
         return point
@@ -243,5 +244,5 @@ class Canvas(QGraphicsView):
         super().mouseReleaseEvent(event)
 
     def preview_translation(self, dx, dy):
-        if self.portrait_drag is not None:
+        if self.portrait_drag is not None and self.image_item is not None:
             self.image_item.setPixmap(pixmap(translate_layer(self.portrait_drag[1], dx, dy, 255)))

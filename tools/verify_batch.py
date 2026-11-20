@@ -5,6 +5,7 @@ import json
 import threading
 import time
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from PIL import Image
@@ -40,7 +41,7 @@ for index, source in enumerate(paths):
         doc.rgb, doc.original_alpha, lambda text: print(f"  {text}", flush=True), threading.Event()
     )
     doc.apply_analysis(alpha, faces)
-    entry = {
+    entry: dict[str, Any] = {
         "source": str(source),
         "level": engine.level,
         "model": engine.model_name,
@@ -54,6 +55,7 @@ for index, source in enumerate(paths):
         assert np.array_equal(result["alpha"], result["before_alpha"])
         assert np.all(result["alpha"] <= result["before_alpha"])
         assert np.any(result["alpha"])
+        assert doc.nose is not None
         t = result["transform"]
         nose_x = t[0] * doc.nose[0] + t[1] * doc.nose[1] + t[2]
         assert abs(nose_x - 473.5) < 1e-6

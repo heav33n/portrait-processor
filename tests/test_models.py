@@ -17,10 +17,9 @@ def tiny_model(path, weight):
     onnx.save(helper.make_model(graph, opset_imports=[helper.make_opsetid("", 13)]), path)
 
 
-def run(path, x):
-    return ort.InferenceSession(str(path), providers=["CPUExecutionProvider"]).run(None, {"x": x})[
-        0
-    ]
+def run(path, x) -> np.ndarray:
+    session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
+    return np.asarray(session.run(None, {"x": x})[0])
 
 
 def test_float16_pack_halves_weights_and_expands_to_matching_float32(tmp_path):
@@ -78,8 +77,6 @@ def test_antivirus_lock_on_the_new_file_is_retried(tmp_path, monkeypatch):
     # Review finding #4: Windows Defender briefly holds freshly written files open.
     import os
 
-    from portrait_processor import models
-
     bundle, home = tmp_path / "bundle", tmp_path / "home"
     bundle.mkdir()
     tiny_model(tmp_path / "o.onnx", np.ones((3, 2), np.float32))
@@ -92,15 +89,14 @@ def test_antivirus_lock_on_the_new_file_is_retried(tmp_path, monkeypatch):
             raise PermissionError(32, "The process cannot access the file")
         real_replace(source, target)
 
-    monkeypatch.setattr(models.os, "replace", flaky)
-    monkeypatch.setattr(models.time, "sleep", lambda _: None)
+    monkeypatch.setattr("portrait_processor.models.os.replace", flaky)
+    monkeypatch.setattr("portrait_processor.models.time.sleep", lambda _: None)
     prepare_model("u2net_human_seg", home, lambda _: None, bundle)
     assert (home / "models" / "u2net_human_seg" / "u2net_human_seg.onnx").is_file()
     assert len(attempts) == 3
 
 
 def test_persistent_lock_falls_back_without_raising(tmp_path, monkeypatch):
-    from portrait_processor import models
 
     bundle, home = tmp_path / "bundle", tmp_path / "home"
     bundle.mkdir()
@@ -110,8 +106,8 @@ def test_persistent_lock_falls_back_without_raising(tmp_path, monkeypatch):
     def locked(*_, **__):
         raise PermissionError(5, "Access is denied")
 
-    monkeypatch.setattr(models.os, "replace", locked)
-    monkeypatch.setattr(models.Path, "unlink", locked)
-    monkeypatch.setattr(models.time, "sleep", lambda _: None)
+    monkeypatch.setattr("portrait_processor.models.os.replace", locked)
+    monkeypatch.setattr("portrait_processor.models.Path.unlink", locked)
+    monkeypatch.setattr("portrait_processor.models.time.sleep", lambda _: None)
     prepare_model("u2net_human_seg", home, lambda _: None, bundle)
     assert not (home / "models" / "u2net_human_seg" / "u2net_human_seg.onnx").exists()
