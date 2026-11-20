@@ -1,0 +1,54 @@
+[build-system]
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
+
+[project]
+name = "portrait-processor"
+version = "0.1.0"
+description = "A local portrait editor with AI background removal and a Rust pixel pipeline"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "numpy>=2,<3",
+    "Pillow>=11,<13",
+    "PySide6-Essentials>=6.8,<7",
+    "rembg[cpu]>=2.0.67,<3",
+    "mediapipe>=0.10.21,<0.11",
+    "opencv-contrib-python>=4.11,<6",
+    "onnx>=1.17,<2",
+]
+
+[project.gui-scripts]
+portrait-processor = "portrait_processor.app:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8,<10",
+    "pytest-qt>=4.4,<5",
+    "maturin>=1.9,<2",
+    "ruff>=0.12",
+]
+
+[tool.maturin]
+python-source = "python"
+module-name = "portrait_processor._native"
+features = ["pyo3/extension-module"]
+profile = "release"
+
+[tool.uv]
+cache-keys = [{ file = "pyproject.toml" }, { file = "Cargo.toml" }, { file = "Cargo.lock" }, { file = "src/**/*.rs" }]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+qt_api = "pyside6"
+markers = ["models: requires downloaded AI models"]
+
+[tool.ruff]
+line-length = 100
+
+
+[tool.basedpyright]
+include = ["python", "tests", "tools"]
+exclude = ["artifacts", "dist", "target", ".venv", "**/__pycache__"]
+venvPath = "."
+venv = ".venv"

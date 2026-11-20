@@ -1,0 +1,13 @@
+.venv/
+target/
+__pycache__/
+*.so
+*.pyd
+*.pyc
+.pytest_cache/
+.ruff_cache/
+dist/
+processed_photos/
+artifacts/
+
+*.core
