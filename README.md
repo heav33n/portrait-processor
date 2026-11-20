@@ -296,3 +296,30 @@ embeds the launcher icon, and creates the ZIP and SHA-256 file in `dist/`.
 It uses PyO3's [Windows import-library support](https://pyo3.rs/v0.27.2/building-and-distribution.html)
 and uv's [managed Python distributions](https://docs.astral.sh/uv/concepts/python-versions/).
 Rebuilding does not publish source code or artifacts to an external service.
+
+### Build the portable Linux or macOS package
+
+On the target system (Linux x64, or macOS 14+ on Apple silicon), after packing the models:
+
+```sh
+uv run --no-sync python tools/build_portable.py --self-test
+```
+
+Linux gets `dist/PortraitProcessor-Linux-x64.tar.gz`: extract it, run `./PortraitProcessor`,
+and optionally `./install-shortcut.sh` to add it to the application menu. It needs glibc 2.34+
+(Ubuntu 22.04, Debian 12, Fedora 35 or newer). macOS gets `dist/PortraitProcessor-macOS-arm64.zip`
+holding an unsigned `Portrait Processor.app`; on first launch, right-click it and choose Open,
+or run `xattr -dr com.apple.quarantine "Portrait Processor.app"`.
+
+### Releases
+
+`.github/workflows/release.yml` builds and tests all three packages on GitHub Actions.
+Push a version tag to publish a GitHub release with the packages and their SHA-256 files:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Running the workflow by hand from the Actions tab builds and tests the packages without
+publishing; download them from the run's Artifacts section.

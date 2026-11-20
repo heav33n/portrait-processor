@@ -1,7 +1,8 @@
-"""Portable Windows runtime check; no downloaded models or personal photos required."""
+"""Portable runtime check; no downloaded models or personal photos required."""
 
 import json
 import os
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -49,12 +50,13 @@ noise = np.random.default_rng(17).integers(0, 256, (1048, 948, 3), dtype=np.uint
 low = save_image(noise, output, "Texture low quality", "JPEG", 15)
 high = save_image(noise, output, "Texture high quality", "JPEG", 95)
 assert high.stat().st_size > low.stat().st_size
-try:
-    export_stem("CON.png")
-except ValueError:
-    pass
-else:
-    raise AssertionError("Reserved Windows filename accepted")
+if sys.platform == "win32":
+    try:
+        export_stem("CON.png")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Reserved Windows filename accepted")
 app = QApplication([])
 app.setStyle("Fusion")
 app.setPalette(dark_palette())
